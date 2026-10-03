@@ -3,15 +3,15 @@ module cliproxyapi-vertex-adc
 go 1.27.1
 
 require (
-	github.com/router-for-me/CLIProxyAPI/v8 v8.0.12
+	github.com/router-for-me/CLIProxyAPI/v8 v8.0.13
 	github.com/tidwall/gjson v1.19.0
 	github.com/tidwall/sjson v1.2.5
 	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/oauth2 v0.33.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
-	cloud.google.com/go/compute/metadata v0.3.0 // indirect
+	cloud.google.com/go/compute/metadata v0.10.0 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.4 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect
