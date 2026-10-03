@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vertex AI (ADC) - CLIProxyAPI</title>
+<style>
+:root{color-scheme:light dark;font-family:system-ui,-apple-system,sans-serif;background:#f5f5f2;color:#202823;--line:#ccd2ca;--muted:#536057;--panel:#fff;--accent:#284d32;--focus:#578264}*{box-sizing:border-box}body{margin:0;padding:48px 24px}main{max-width:760px;margin:auto}header{padding-bottom:24px;border-bottom:1px solid var(--line)}h1{font-size:clamp(28px,5vw,38px);letter-spacing:-.035em;margin:0 0 12px}h2{font-size:21px;letter-spacing:-.02em;margin:0 0 18px}p{color:var(--muted);line-height:1.65;margin:10px 0}form{padding:28px 0;border-bottom:1px solid var(--line)}label{display:block;font-weight:650;margin-bottom:10px}input{width:100%;font:inherit;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:inherit}button{font:inherit;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:white;border-radius:6px;padding:11px 16px;min-height:44px;cursor:pointer}button.secondary{background:transparent;color:var(--accent)}button:disabled{opacity:.55;cursor:wait}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.note{font-size:13px}.status{min-height:26px;overflow-wrap:anywhere}#report{margin-top:30px}dl{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:20px 0}dt{font-size:13px;color:var(--muted)}dd{font-size:14px;font-variant-numeric:tabular-nums;margin:5px 0;overflow-wrap:anywhere}.bad{color:#b5302a}footer{margin-top:32px;color:var(--muted);line-height:1.7;font-size:13px}input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}::selection{background:#bdd7be;color:#142418}[hidden]{display:none!important}@media(prefers-color-scheme:dark){:root{background:#161b17;color:#edf1eb;--panel:#202821;--line:#3e4b40;--muted:#b2c0b2;--accent:#9dcaaa;--focus:#70a27c}button{background:#284d32;border-color:#62836a}button.secondary{color:var(--accent);background:transparent}.bad{color:#f0908a}}@media(max-width:480px){body{padding:28px 16px}dl{grid-template-columns:1fr}.actions button{flex:1 1 auto}}
+</style>
+</head>
+<body><main>
+<header><h1>Vertex AI (ADC)</h1><p>Authentication uses Google Application Default Credentials.<br>The model catalog is discovered from Vertex and refreshed automatically.</p></header>
+<form id="connection"><label for="key">CLIProxyAPI management key</label><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="Enter your management key"><div class="actions"><button id="connect" type="submit">Check status</button><button id="refresh" type="button" class="secondary">Refresh models</button><button id="lock" type="button" class="secondary">Clear session</button></div><p class="note">The key stays in this page's memory. It is never saved in browser storage or sent to Google.</p><p id="message" class="status" role="status" aria-live="polite">Enter your management key to inspect ADC status and discovered models.</p></form>
+<section id="report" hidden aria-label="Plugin status"><h2>Status</h2><dl id="fields"></dl></section>
+<footer>Models must be accessible to the credentials in use and enabled in your project's Model Garden. This plugin never enables models or accepts provider agreements for you.</footer>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id), endpoint='/v0/management/plugins/vertex-adc';
+let sessionGeneration=0, busy=false;
+const requests=new Set();
+const date=v=>!v||v.startsWith('0001-')?'Not available':new Date(v).toLocaleString();
+function clearSession(){sessionGeneration++;for(const request of requests)request.abort();requests.clear();busy=false;for(const id of ['connect','refresh'])$(id).disabled=false;$('key').value='';$('report').hidden=true;$('fields').replaceChildren();$('message').textContent='Session cleared. No key was saved.';}
+async function api(path,method='GET',body){
+ const generation=sessionGeneration,key=$('key').value.trim();
+ if(!key){$('key').focus();throw new Error('Enter the management key to continue.');}
+ const controller=new AbortController();requests.add(controller);
+ try{
+  const r=await fetch(path,{method,headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,cache:'no-store',credentials:'omit',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(60000)])});
+  const data=await r.json();if(generation!==sessionGeneration)throw new DOMException('Session cleared','AbortError');
+  if(!r.ok)throw new Error(typeof data.error==='string'?data.error:'Request failed (HTTP '+r.status+').');return data;
+ }finally{requests.delete(controller);}
+}
+function row(dl,name,value,bad){const div=document.createElement('div');const dt=document.createElement('dt');dt.textContent=name;const dd=document.createElement('dd');dd.textContent=value;if(bad)dd.className='bad';div.append(dt,dd);dl.append(div);}
+function render(data){const dl=$('fields');dl.replaceChildren();
+ row(dl,'Credentials',data.credentials_ready?'Ready':'Not available',!data.credentials_ready);
+ if(data.credentials_error)row(dl,'Credentials error',data.credentials_error,true);
+ row(dl,'Project',data.project_id||'-');
+ row(dl,'Quota project',data.quota_project_id||'-');
+ row(dl,'Location',data.location||'-');
+ row(dl,'Publishers',(data.publishers||[]).join(', ')||'-');
+ row(dl,'Model prefix',data.model_prefix||'-');
+ row(dl,'Discovered models',String(data.model_count||0));
+ if(data.catalog_error)row(dl,'Catalog error',data.catalog_error,true);
+ row(dl,'Catalog fetched',date(data.catalog_fetched_at));
+ row(dl,'Catalog valid until',date(data.catalog_expires_at));
+ $('report').hidden=false;$('message').textContent=data.catalog_error||'Status updated.';}
+async function run(task){if(busy)return;const generation=sessionGeneration;busy=true;for(const id of ['connect','refresh'])$(id).disabled=true;try{await task();}catch(e){if(generation===sessionGeneration){$('message').textContent=e.message;$('report').hidden=true;}}finally{if(generation===sessionGeneration){busy=false;for(const id of ['connect','refresh'])$(id).disabled=false;}}}
+$('connection').addEventListener('submit',e=>{e.preventDefault();run(async()=>render(await api(endpoint+'/status')));});
+$('refresh').addEventListener('click',()=>run(async()=>{$('message').textContent='Refreshing model catalog...';render(await api(endpoint+'/refresh','POST',{}));}));
+$('lock').addEventListener('click',clearSession);window.addEventListener('pagehide',clearSession);
+</script>
+</body></html>

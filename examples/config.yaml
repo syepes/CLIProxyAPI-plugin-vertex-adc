@@ -1,0 +1,58 @@
+# Merge into an existing host configuration. Do not replace its credentials.
+#
+# Authentication uses Google Application Default Credentials (ADC). No service
+# account or JSON key is required: run `gcloud auth application-default login`,
+# or rely on a workload/GCE metadata server. The plugin reads the ambient ADC
+# token and attaches x-goog-user-project automatically.
+plugins:
+  enabled: true
+  dir: ./plugins
+  configs:
+    vertex-adc:
+      enabled: true
+
+      # Google Cloud project used in the Vertex request path. Falls back to
+      # ANTHROPIC_VERTEX_PROJECT_ID, GOOGLE_CLOUD_PROJECT, then the ADC project.
+      project_id: gcp-project-id
+
+      # Vertex location. "global" (default) uses aiplatform.googleapis.com;
+      # a region such as us-east5 uses us-east5-aiplatform.googleapis.com.
+      location: global
+
+      # Optional. Quota/billing project for the x-goog-user-project header.
+      # Defaults to GOOGLE_CLOUD_QUOTA_PROJECT, the ADC quota_project_id, then project_id.
+      # quota_project_id: ""
+
+      # Optional. Path to an ADC JSON file. Empty uses standard ADC resolution
+      # (gcloud application_default_credentials.json / GOOGLE_APPLICATION_CREDENTIALS / metadata).
+      # credentials: "file:/absolute/path/to/application_default_credentials.json"
+
+      # Publishers to surface. Supported: anthropic (Claude), google (Gemini).
+      publishers:
+        - anthropic
+        - google
+
+      # Public model namespace. IDs are exposed as <prefix>/<publisher>/<model>,
+      # e.g. vertex/anthropic/claude-sonnet-4 or vertex/google/gemini-2.5-pro.
+      model_prefix: vertex
+
+      # Optional allowlist. Empty auto-discovers every accessible Claude/Gemini model.
+      # Names must be publisher-qualified; alias overrides the full public ID.
+      models: []
+      # models:
+      #   - name: anthropic/claude-sonnet-4@20250514
+      #   - name: google/gemini-2.5-pro
+      #     alias: gem-pro
+
+      # Case-insensitive model ID prefixes to drop from discovery.
+      models_excluded: [] # e.g. ["google/gemini-1.5"]
+
+      # In-memory catalog cache lifetime (30-3600 seconds).
+      model_cache_ttl_seconds: 300
+
+      # Optional. Proxy URL for the ADC token exchange.
+      # proxy_url: "socks5://127.0.0.1:1080"
+
+      # Optional. Override the Vertex API host (private endpoints / testing).
+      # api_endpoint: "https://aiplatform.googleapis.com"
+      # allow_insecure_base_url: false # permits http on loopback for tests only
