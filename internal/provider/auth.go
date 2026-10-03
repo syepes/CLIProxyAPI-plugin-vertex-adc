@@ -49,7 +49,13 @@ func (s *Service) buildCredentials(ctx context.Context) (*adcCredentials, error)
 			return nil, statusError("credentials_error", "cannot read credentials file", 500)
 		}
 		rawJSON = data
-		creds, err = google.CredentialsFromJSON(ctx, data, cloudPlatformScope)
+		credType, typeErr := trustedCredentialType(data)
+		if typeErr != nil {
+			return nil, typeErr
+		}
+		// Validate the credential type against the parsed JSON (non-deprecated API):
+		// the configured file is operator-provided, and we accept only known ADC types.
+		creds, err = google.CredentialsFromJSONWithType(ctx, data, credType, cloudPlatformScope)
 	} else {
 		creds, err = google.FindDefaultCredentials(ctx, cloudPlatformScope)
 		if creds != nil {
@@ -83,6 +89,29 @@ func (s *Service) buildCredentials(ctx context.Context) (*adcCredentials, error)
 	}
 
 	return &adcCredentials{source: creds.TokenSource, projectID: project, quotaProject: quota}, nil
+}
+
+// trustedCredentialType parses the credential JSON's declared type and accepts
+// only the known Application Default Credentials types. It is used to call the
+// type-validated, non-deprecated CredentialsFromJSONWithType loader.
+func trustedCredentialType(data []byte) (google.CredentialsType, error) {
+	var meta struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return "", statusError("credentials_error", "credentials file is not valid JSON", 500)
+	}
+	credType := google.CredentialsType(strings.TrimSpace(meta.Type))
+	switch credType {
+	case google.ServiceAccount,
+		google.AuthorizedUser,
+		google.ExternalAccount,
+		google.ExternalAccountAuthorizedUser,
+		google.ImpersonatedServiceAccount:
+		return credType, nil
+	default:
+		return "", statusError("credentials_error", "unsupported credential type in credentials file", 500)
+	}
 }
 
 // token returns a current ADC access token. The google token source caches and
