@@ -7,7 +7,7 @@ require (
 	github.com/tidwall/gjson v1.19.0
 	github.com/tidwall/sjson v1.2.5
 	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/oauth2 v0.33.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
