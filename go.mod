@@ -3,10 +3,10 @@ module cliproxyapi-vertex-adc
 go 1.27.1
 
 require (
-	github.com/router-for-me/CLIProxyAPI/v8 v8.0.13
-	github.com/tidwall/gjson v1.19.0
+	github.com/router-for-me/CLIProxyAPI/v8 v8.0.46
+	github.com/tidwall/gjson v1.20.0
 	github.com/tidwall/sjson v1.2.5
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/oauth2 v0.37.0
 )
 
@@ -45,7 +45,7 @@ require (
 	go.uber.org/atomic v1.12.0 // indirect
 	golang.org/x/arch v0.31.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
