@@ -245,7 +245,18 @@ func TestNativePlugin(t *testing.T) {
 		}
 	}
 
+	// The host binds its port a moment after start, so tolerate connection errors here.
 	await(t, func() bool {
+		select {
+		case err := <-exited:
+			t.Fatalf("host exited early: %v", err)
+		default:
+		}
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Second)
+		if err != nil {
+			return false
+		}
+		_ = conn.Close()
 		_, b := request("GET", "/v1/models", "client-test-key", nil)
 		return bytes.Contains(b, []byte("vertex/anthropic/claude-sonnet-4")) && bytes.Contains(b, []byte("vertex/google/gemini-2.5-pro"))
 	})
@@ -286,11 +297,11 @@ func TestNativePlugin(t *testing.T) {
 		}
 	})
 
-	t.Run("unknown model rejected", func(t *testing.T) {
+	t.Run("unsupported publisher rejected", func(t *testing.T) {
 		before := rawPredict.Load() + genContent.Load()
-		code, _ := request("POST", "/v1/messages", "client-test-key", map[string]any{"model": "vertex/anthropic/does-not-exist", "max_tokens": 8, "messages": []any{map[string]string{"role": "user", "content": "hi"}}})
+		code, body := request("POST", "/v1/messages", "client-test-key", map[string]any{"model": "vertex/unsupported/does-not-exist", "max_tokens": 8, "messages": []any{map[string]string{"role": "user", "content": "hi"}}})
 		if code == 200 || rawPredict.Load()+genContent.Load() != before {
-			t.Fatalf("unknown model reached upstream: %d", code)
+			t.Fatalf("unknown model reached upstream: %d %s calls=%d/%d", code, body, rawPredict.Load(), genContent.Load())
 		}
 	})
 
